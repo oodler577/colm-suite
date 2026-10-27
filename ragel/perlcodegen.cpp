@@ -25,7 +25,6 @@ void PerlCodeGen::finishRagelDef()
     if (getKeyExpr || accessExpr || pExpr || peExpr || eofExpr || csExpr || dataExpr ||
         prePushExpr || postPopExpr || topExpr || stackExpr || actExpr || tokstartExpr || tokendExpr) unsupported("variable or access overrides");
     for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
-        if (st->stateCondList.length()) unsupported("semantic conditions");
         if (st->eofTrans) unsupported("EOF transitions");
         if (st->eofAction) {
             for (GenActionTable::Iter a = st->eofAction->key; a.lte(); a++)
@@ -90,6 +89,15 @@ void PerlCodeGen::action(RedAction *a)
         out << "\n";
     }
 }
+void PerlCodeGen::condition(GenAction *a)
+{
+    for (GenInlineList::Iter i = *a->inlineList; i.lte(); i++) {
+        if (i->type == GenInlineItem::Text) out << i->data;
+        else if (i->type == GenInlineItem::Char) out << "ord(substr($data, $p, 1))";
+        else if (i->type == GenInlineItem::PChar) out << "$p";
+        else unsupported("control statement in semantic condition");
+    }
+}
 void PerlCodeGen::writeExec()
 {
     if (noEnd) unsupported("write exec noend");
@@ -105,6 +113,26 @@ void PerlCodeGen::writeExec()
         }
     }
     out << "  my $_ragel_key = ord(substr($data, $p, 1));\n";
+    if (redFsm->anyConditions()) {
+        out << "  my $_ragel_original = $_ragel_key;\n";
+        for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
+            for (GenStateCondList::Iter c = st->stateCondList; c.lte(); c++) {
+                GenCondSpace *space = c->condSpace;
+                out << "  if ($cs == " << st->id << " && $_ragel_original >= "
+                    << c->lowKey.getLongLong() << " && $_ragel_original <= "
+                    << c->highKey.getLongLong() << ") {\n";
+                out << "   $_ragel_key = " << space->baseKey.getLongLong() << " + $_ragel_original - "
+                    << keyOps->minKey.getLongLong() << ";\n";
+                for (GenCondSet::Iter a = space->condSet; a.lte(); a++) {
+                    if (a.pos() >= 55) unsupported("too many semantic conditions");
+                    out << "   $_ragel_key += " << ((1ULL << a.pos()) * keyOps->alphSize()) << " if (";
+                    condition(*a);
+                    out << ");\n";
+                }
+                out << "  }\n";
+            }
+        }
+    }
     bool firstState = true;
     for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
         if (st->id == errorState()) continue;

@@ -18,7 +18,9 @@ The same variables can be retained across calls for chunked input.
 The target supports `fhold`, `fbreak`, and named-destination `fnext`, `fgoto`,
 `fcall`, and `fret` in non-EOF actions. For call/return, the host must declare
 `@stack` and `$top`; `write init` initializes `$top`. It rejects other control statements, EOF transitions,
-semantic conditions, scanners, variable overrides, and non-default styles.
+scanners, variable overrides, and non-default styles. Semantic conditions
+with Perl expressions are supported; Ragel control statements inside a
+condition are rejected.
 EOF actions using `fc` or control statements are also rejected, as are
 `fgoto`, `fcall`, and `fret` in from-state actions.
 It does not yet support exports or generated entry-point constants. The host

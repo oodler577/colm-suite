@@ -30,7 +30,7 @@ if "$root/ragel/ragel" -Q -o "$tmp/unsupported.pl" "$root/examples/perl/unsuppor
     exit 1
 fi
 grep -q 'Perl backend: unsupported Ragel control statements' "$tmp/err"
-for pair in state-actions control next-hold call-ret goto; do
+for pair in state-actions control next-hold call-ret goto conditions; do
     "$root/ragel/ragel" -Q -o "$tmp/$pair.pl" "$root/examples/perl/$pair.rl"
     "$root/ragel/ragel" -R -o "$tmp/$pair.rb" "$root/examples/perl/$pair-ruby.rl"
     perl -c "$tmp/$pair.pl"
@@ -40,6 +40,8 @@ for pair in state-actions control next-hold call-ret goto; do
 done
 printf 'FXTFXTE:ACCEPT\nFXT:FAIL\nF:FAIL\n:FAIL\n' > "$tmp/state.expected"
 diff -u "$tmp/state.expected" "$tmp/state-actions.perl"
+printf ':FAIL\n1:ACCEPT\n2:ACCEPT\n12:ACCEPT\n' > "$tmp/conditions.expected"
+diff -u "$tmp/conditions.expected" "$tmp/conditions.perl"
 printf 'position=1:ACCEPT\n' > "$tmp/next.expected"
 diff -u "$tmp/next.expected" "$tmp/next-hold.perl"
 printf 'CR:3:ACCEPT\n' > "$tmp/call.expected"

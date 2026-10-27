@@ -17,6 +17,7 @@ public:
     void writeError();
 private:
     void action(RedAction *a);
+    void condition(GenAction *a);
     int firstFinal();
     int errorState();
 };
