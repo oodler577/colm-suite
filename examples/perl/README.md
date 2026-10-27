@@ -92,3 +92,32 @@ independent of that optional dependency. To regenerate the Perl source:
 ```sh
 ragel/ragel -L -Q -o examples/perl/demos/linux-event-ping.pl examples/perl/demos/linux-event-ping.rl
 ```
+
+## HTTP-style request example
+
+`demos/linux-event-http.rl` and its generated `.pl` demonstrate a small HTTP
+request parser connected to `Linux::Event::IO::Sock::Stream`. The built-in
+self-test sends requests through a local Unix socket pair, deliberately splits
+the greeting request across callbacks, verifies the complete response bytes,
+and covers 200, 404, and 400 outcomes. No listening socket is opened.
+
+Supported format is deliberately narrow: `GET`, paths containing ASCII letters,
+digits, slash, underscore or hyphen, `HTTP/1.1`, zero or more ASCII header
+lines, CRLF terminators, and no request body. `/health` and `/hello/NAME`
+respond with text; other accepted paths return 404. This does not implement
+full HTTP, Host validation, persistent connections, pipelining, transfer
+encodings, request bodies, or general security checks. Do not deploy this
+self-test as an HTTP server.
+
+With Linux::Event 0.117 or newer installed, run:
+
+```sh
+perl examples/perl/demos/linux-event-http.pl
+sh examples/perl/check-linux-event.sh
+```
+
+To regenerate the Perl output after building Ragel:
+
+```sh
+ragel/ragel -L -Q -o examples/perl/demos/linux-event-http.pl examples/perl/demos/linux-event-http.rl
+```
