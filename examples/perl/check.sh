@@ -60,4 +60,12 @@ printf 'position=3\n' > "$tmp/control.expected"
 diff -u "$tmp/control.expected" "$tmp/noend.perl"
 diff -u "$tmp/control.expected" "$tmp/control.perl"
 test "$(wc -l < "$tmp/table-ranges.perl")" -eq 16512
-printf 'Ruby comparison, streaming, actions, table ranges, and unsupported-feature checks passed.\n'
+for demo in product-code key-value streaming-greeting login-events; do
+    "$root/ragel/ragel" -L -Q -o "$tmp/$demo.pl" "$root/examples/perl/demos/$demo.rl"
+    sed 's/[[:blank:]]*$//' "$tmp/$demo.pl" > "$tmp/$demo.normalized.pl"
+    diff -u "$root/examples/perl/demos/$demo.pl" "$tmp/$demo.normalized.pl"
+    perl -c "$tmp/$demo.pl"
+    perl "$tmp/$demo.pl" > "$tmp/$demo.actual"
+    diff -u "$root/examples/perl/demos/$demo.expected" "$tmp/$demo.actual"
+done
+printf 'Ruby comparisons and generated Perl examples passed.\n'

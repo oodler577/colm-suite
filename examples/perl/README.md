@@ -44,3 +44,26 @@ Inspect the generated output with:
 ragel/ragel -L -Q -o greeting.pl examples/perl/greeting.rl
 ragel/ragel -L -R -o greeting.rb examples/perl/greeting-ruby.rl
 ```
+
+## Runnable Perl examples
+
+The `demos/` directory pairs each `.rl` source with its generated `.pl` and
+an `.expected` output file:
+
+- `product-code`: validate codes made of three uppercase letters and four digits.
+- `key-value`: capture fields using transition actions.
+- `streaming-greeting`: retain machine state while processing three input chunks.
+- `login-events`: call ordinary Perl subroutines from actions to build an event.
+
+Run a checked-in program with `perl examples/perl/demos/login-events.pl`.
+Regenerate it after building Ragel with:
+
+```sh
+ragel/ragel -L -Q -o examples/perl/demos/login-events.pl examples/perl/demos/login-events.rl
+```
+
+The checked-in examples have trailing whitespace removed for review; the test
+normalizes whitespace before comparing generated code. `sh examples/perl/check.sh`
+regenerates each example in a temporary directory and verifies its output. These
+are demonstrations of the supported subset described above, not general log
+parsers or complete Ruby parity.
