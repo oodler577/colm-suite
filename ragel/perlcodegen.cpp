@@ -35,6 +35,11 @@ void PerlCodeGen::finishRagelDef()
     }
     for (GenActionList::Iter a = actionList; a.lte(); a++) {
         if (!a->numRefs()) continue;
+        if (a->numFromStateRefs) {
+            for (GenInlineList::Iter i = *a->inlineList; i.lte(); i++)
+                if (i->type == GenInlineItem::Goto || i->type == GenInlineItem::Call || i->type == GenInlineItem::Ret)
+                    unsupported("goto/call/return in from-state actions");
+        }
         if (a->numEofRefs) {
             for (GenInlineList::Iter i = *a->inlineList; i.lte(); i++)
                 if (i->type == GenInlineItem::Break || i->type == GenInlineItem::Hold || i->type == GenInlineItem::Next || i->type == GenInlineItem::Goto || i->type == GenInlineItem::Call || i->type == GenInlineItem::Ret)
@@ -72,7 +77,7 @@ void PerlCodeGen::action(RedAction *a)
     for (GenActionTable::Iter item = a->key; item.lte(); item++) {
         for (GenInlineList::Iter i = *item->value->inlineList; i.lte(); i++) {
             if (i->type == GenInlineItem::Text) out << i->data;
-            else if (i->type == GenInlineItem::Char) out << "$_ragel_key";
+            else if (i->type == GenInlineItem::Char) out << "ord(substr($data, $p, 1))";
             else if (i->type == GenInlineItem::PChar) out << "$p";
             else if (i->type == GenInlineItem::Hold) out << "--$p;";
             else if (i->type == GenInlineItem::Next) out << "$cs = " << i->targState->id << ";";
@@ -89,7 +94,6 @@ void PerlCodeGen::writeExec()
 {
     if (noEnd) unsupported("write exec noend");
     out << "{\n use bytes;\n while ($p < $pe && $cs != " << errorState() << ") {\n";
-    out << "  my $_ragel_key = ord(substr($data, $p, 1));\n";
     if (redFsm->anyFromStateActions()) {
         out << "  my $_ragel_from = $cs;\n";
         for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
@@ -100,6 +104,7 @@ void PerlCodeGen::writeExec()
             }
         }
     }
+    out << "  my $_ragel_key = ord(substr($data, $p, 1));\n";
     bool firstState = true;
     for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
         if (st->id == errorState()) continue;

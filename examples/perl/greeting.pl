@@ -101,7 +101,7 @@ $cs = 1;
    elsif ($_ragel_key >= 65 && $_ragel_key <= 90) {
     $cs = 8;
  $name .= '[';
- $name .= chr($_ragel_key);
+ $name .= chr(ord(substr($data, $p, 1)));
    }
    elsif ($_ragel_key >= 91 && $_ragel_key <= 255) {
     $cs = 0;
@@ -120,7 +120,7 @@ $cs = 1;
    }
    elsif ($_ragel_key >= 65 && $_ragel_key <= 90) {
     $cs = 8;
- $name .= chr($_ragel_key);
+ $name .= chr(ord(substr($data, $p, 1)));
    }
    elsif ($_ragel_key >= 91 && $_ragel_key <= 255) {
     $cs = 0;
