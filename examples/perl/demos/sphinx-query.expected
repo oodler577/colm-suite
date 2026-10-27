@@ -1,0 +1,10 @@
+QUERY: @title "state machine" perl | ruby
+  PHRASE field=title: state machine
+  WORD field=title: perl
+  OR: |
+  WORD field=title: ruby
+QUERY: @body perl search
+  WORD field=body: perl
+  WORD field=body: search
+QUERY: perl |
+  INVALID (outside supported subset)

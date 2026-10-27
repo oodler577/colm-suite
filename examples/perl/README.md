@@ -54,6 +54,7 @@ an `.expected` output file:
 - `key-value`: capture fields using transition actions.
 - `streaming-greeting`: retain machine state while processing three input chunks.
 - `login-events`: call ordinary Perl subroutines from actions to build an event.
+- `sphinx-query`: tokenize a small subset of Sphinx extended search expressions.
 
 Run a checked-in program with `perl examples/perl/demos/login-events.pl`.
 Regenerate it after building Ragel with:
@@ -121,3 +122,24 @@ To regenerate the Perl output after building Ragel:
 ```sh
 ragel/ragel -L -Q -o examples/perl/demos/linux-event-http.pl examples/perl/demos/linux-event-http.rl
 ```
+
+## Sphinx search expression example
+
+`demos/sphinx-query.rl` and its generated `.pl` recognize a small subset of
+Sphinx extended query syntax: ASCII words, quoted phrases, `@field` limits,
+implicit AND between terms, and `|` for OR. Field limits carry forward until
+the next field limit. The output is a token stream, not an evaluated search or
+an expression tree; Sphinx gives OR higher precedence than implicit AND.
+This demo does not connect to Sphinx or use Linux::Event. It omits parentheses,
+negation, escapes, Unicode, and other Sphinx operators.
+
+Run the example with its built-in queries or pass your own query as an argument:
+
+```sh
+perl examples/perl/demos/sphinx-query.pl
+perl examples/perl/demos/sphinx-query.pl '@title "state machine" perl | ruby'
+ragel/ragel -L -Q -o examples/perl/demos/sphinx-query.pl examples/perl/demos/sphinx-query.rl
+```
+
+See [Sphinx extended query syntax](https://sphinxsearch.com/docs/current/extended-syntax.html)
+for the full language and its semantics.
