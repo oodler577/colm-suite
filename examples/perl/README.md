@@ -67,3 +67,28 @@ normalizes whitespace before comparing generated code. `sh examples/perl/check.s
 regenerates each example in a temporary directory and verifies its output. These
 are demonstrations of the supported subset described above, not general log
 parsers or complete Ruby parity.
+
+## Linux::Event socket example
+
+`demos/linux-event-ping.rl` and the generated `linux-event-ping.pl` combine
+the Perl target with Linux::Event 0.117 or newer. A local Unix socket pair
+sends `PING BRETT\r\n` in two event-loop turns. The Ragel machine keeps its
+state across callbacks; after recognizing the complete request, the Stream
+callback writes `PONG BRETT\r\n` back to the peer. The program verifies the
+response and exits. This is a deliberately small, one-request demo protocol;
+it is not an HTTP server or a production protocol implementation.
+
+On Linux with Perl 5.36 or newer, a C toolchain and the other Linux::Event
+prerequisites, install the module using `cpanm Linux::Event`, then run:
+
+```sh
+perl examples/perl/demos/linux-event-ping.pl
+sh examples/perl/check-linux-event.sh
+```
+
+The integration check requires Linux::Event; the general `check.sh` remains
+independent of that optional dependency. To regenerate the Perl source:
+
+```sh
+ragel/ragel -L -Q -o examples/perl/demos/linux-event-ping.pl examples/perl/demos/linux-event-ping.rl
+```
