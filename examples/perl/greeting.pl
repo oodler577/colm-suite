@@ -137,6 +137,7 @@ $cs = 1;
   last if $cs == 0;
   ++$p;
  }
+ RAGEL_PERL_OUT: ;
 }
 
     print(($cs >= $greeting_first_final ? 'ACCEPT' : 'FAIL'), ":$name\n");

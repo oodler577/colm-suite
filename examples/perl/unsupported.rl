@@ -1,5 +1,5 @@
 %%{
     machine unsupported;
-    main := 'a' @{ fhold; };
+    main := 'a' @{ fexec 0; };
 }%%
 %% write data;

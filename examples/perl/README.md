@@ -10,12 +10,16 @@ The surrounding Perl must declare `$data`, `$p`, `$pe`, and `$cs`; `write data`
 declares machine constants, `write init` initializes `$cs`, and `write exec`
 consumes input from `$p` up to `$pe`. Offsets and length must be bytes; pass byte
 strings and calculate lengths under `use bytes`. Actions are Perl source;
-`fc` gives the numeric current byte and `fpc` its offset. Transition actions
-are supported. Variables in actions follow their ordinary Perl lexical scope.
+`fc` gives the numeric current byte and `fpc` its offset. Transition, to-state, from-state, and EOF actions are supported. When EOF
+actions are present, the host must declare `$eof` and set it to the byte offset
+of the actual end of input; use an undefined value for non-final chunks. Variables in actions follow their ordinary Perl lexical scope.
 The same variables can be retained across calls for chunked input.
 
-The target rejects state/EOF actions, semantic conditions, scanners, Ragel
-control statements in actions, variable overrides, and non-default styles.
+The target supports `fhold`, `fbreak`, and named-destination `fnext`, `fgoto`,
+`fcall`, and `fret` in non-EOF actions. For call/return, the host must declare
+`@stack` and `$top`; `write init` initializes `$top`. It rejects other control statements, EOF transitions,
+semantic conditions, scanners, variable overrides, and non-default styles.
+EOF actions using `fc` or control statements are also rejected.
 It does not yet support exports or generated entry-point constants. The host
 scanner currently reuses Ruby's limited source lexer: avoid complex Perl
 quoting, heredocs and regex literals in and around Ragel blocks. It is not a
