@@ -30,7 +30,7 @@ if "$root/ragel/ragel" -Q -o "$tmp/unsupported.pl" "$root/examples/perl/unsuppor
     exit 1
 fi
 grep -q 'Perl backend: unsupported Ragel control statements' "$tmp/err"
-for pair in state-actions control next-hold call-ret goto conditions; do
+for pair in state-actions control next-hold call-ret goto conditions dynamic noend; do
     "$root/ragel/ragel" -Q -o "$tmp/$pair.pl" "$root/examples/perl/$pair.rl"
     "$root/ragel/ragel" -R -o "$tmp/$pair.rb" "$root/examples/perl/$pair-ruby.rl"
     perl -c "$tmp/$pair.pl"
@@ -48,6 +48,9 @@ printf 'CR:3:ACCEPT\n' > "$tmp/call.expected"
 diff -u "$tmp/call.expected" "$tmp/call-ret.perl"
 printf 'J:2:ACCEPT\n' > "$tmp/goto.expected"
 diff -u "$tmp/goto.expected" "$tmp/goto.perl"
+printf 'position=1:ACCEPT\n' > "$tmp/dynamic.expected"
+diff -u "$tmp/dynamic.expected" "$tmp/dynamic.perl"
 printf 'position=3\n' > "$tmp/control.expected"
+diff -u "$tmp/control.expected" "$tmp/noend.perl"
 diff -u "$tmp/control.expected" "$tmp/control.perl"
 printf 'Ruby comparison, streaming, actions, and unsupported-feature checks passed.\n'

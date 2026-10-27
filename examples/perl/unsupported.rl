@@ -1,5 +1,5 @@
 %%{
     machine unsupported;
-    main := 'a' @{ fexec 0; };
+    main := 'a' @{ my $previous = fcurs; };
 }%%
 %% write data;

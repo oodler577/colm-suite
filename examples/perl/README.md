@@ -15,8 +15,9 @@ actions are present, the host must declare `$eof` and set it to the byte offset
 of the actual end of input; use an undefined value for non-final chunks. Variables in actions follow their ordinary Perl lexical scope.
 The same variables can be retained across calls for chunked input.
 
-The target supports `fhold`, `fbreak`, and named-destination `fnext`, `fgoto`,
-`fcall`, and `fret` in non-EOF actions. For call/return, the host must declare
+The target supports `fhold`, `fexec`, `fbreak`, `fentry`, `fnext`, `fgoto`,
+`fcall`, and `fret` in non-EOF actions, including expression destinations.
+`write exec noend` is supported; the caller must arrange for execution to stop. For call/return, the host must declare
 `@stack` and `$top`; `write init` initializes `$top`. It rejects other control statements, EOF transitions,
 scanners, variable overrides, and non-default styles. Semantic conditions
 with Perl expressions are supported; Ragel control statements inside a

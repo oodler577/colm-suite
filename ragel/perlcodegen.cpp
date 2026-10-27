@@ -36,12 +36,12 @@ void PerlCodeGen::finishRagelDef()
         if (!a->numRefs()) continue;
         if (a->numFromStateRefs) {
             for (GenInlineList::Iter i = *a->inlineList; i.lte(); i++)
-                if (i->type == GenInlineItem::Goto || i->type == GenInlineItem::Call || i->type == GenInlineItem::Ret)
+                if (i->type == GenInlineItem::Goto || i->type == GenInlineItem::Call || i->type == GenInlineItem::Ret || i->type == GenInlineItem::GotoExpr || i->type == GenInlineItem::CallExpr)
                     unsupported("goto/call/return in from-state actions");
         }
         if (a->numEofRefs) {
             for (GenInlineList::Iter i = *a->inlineList; i.lte(); i++)
-                if (i->type == GenInlineItem::Break || i->type == GenInlineItem::Hold || i->type == GenInlineItem::Next || i->type == GenInlineItem::Goto || i->type == GenInlineItem::Call || i->type == GenInlineItem::Ret)
+                if (i->type != GenInlineItem::Text && i->type != GenInlineItem::PChar)
                     unsupported("control statements in EOF actions");
         }
         for (GenInlineList::Iter i = *a->inlineList; i.lte(); i++) {
@@ -49,7 +49,9 @@ void PerlCodeGen::finishRagelDef()
                 i->type != GenInlineItem::PChar && i->type != GenInlineItem::Hold &&
                 i->type != GenInlineItem::Next && i->type != GenInlineItem::Break &&
                 i->type != GenInlineItem::Goto && i->type != GenInlineItem::Call &&
-                i->type != GenInlineItem::Ret)
+                i->type != GenInlineItem::Ret && i->type != GenInlineItem::Exec &&
+                i->type != GenInlineItem::NextExpr && i->type != GenInlineItem::GotoExpr &&
+                i->type != GenInlineItem::CallExpr && i->type != GenInlineItem::Entry)
                 unsupported("Ragel control statements in actions");
         }
     }
@@ -84,24 +86,32 @@ void PerlCodeGen::action(RedAction *a)
             else if (i->type == GenInlineItem::Goto) out << "$cs = " << i->targState->id << "; goto RAGEL_PERL_AGAIN;";
             else if (i->type == GenInlineItem::Call) out << "$stack[$top++] = $cs; $cs = " << i->targState->id << "; goto RAGEL_PERL_AGAIN;";
             else if (i->type == GenInlineItem::Ret) out << "$cs = $stack[--$top]; goto RAGEL_PERL_AGAIN;";
+            else if (i->type == GenInlineItem::Entry) out << i->targState->id;
+            else if (i->type == GenInlineItem::Exec) { out << "$p = ("; expression(i->children); out << ") - 1;"; }
+            else if (i->type == GenInlineItem::NextExpr) { out << "$cs = ("; expression(i->children); out << ");"; }
+            else if (i->type == GenInlineItem::GotoExpr) { out << "$cs = ("; expression(i->children); out << "); goto RAGEL_PERL_AGAIN;"; }
+            else if (i->type == GenInlineItem::CallExpr) { out << "$stack[$top++] = $cs; $cs = ("; expression(i->children); out << "); goto RAGEL_PERL_AGAIN;"; }
             else unsupported("action item");
         }
         out << "\n";
     }
 }
-void PerlCodeGen::condition(GenAction *a)
+void PerlCodeGen::expression(GenInlineList *list)
 {
-    for (GenInlineList::Iter i = *a->inlineList; i.lte(); i++) {
+    for (GenInlineList::Iter i = *list; i.lte(); i++) {
         if (i->type == GenInlineItem::Text) out << i->data;
         else if (i->type == GenInlineItem::Char) out << "ord(substr($data, $p, 1))";
         else if (i->type == GenInlineItem::PChar) out << "$p";
-        else unsupported("control statement in semantic condition");
+        else if (i->type == GenInlineItem::Entry) out << i->targState->id;
+        else unsupported("Ragel statement in expression");
     }
 }
+void PerlCodeGen::condition(GenAction *a) { expression(a->inlineList); }
 void PerlCodeGen::writeExec()
 {
-    if (noEnd) unsupported("write exec noend");
-    out << "{\n use bytes;\n while ($p < $pe && $cs != " << errorState() << ") {\n";
+    out << "{\n use bytes;\n while (";
+    if (!noEnd) out << "$p < $pe && ";
+    out << "$cs != " << errorState() << ") {\n";
     if (redFsm->anyFromStateActions()) {
         out << "  my $_ragel_from = $cs;\n";
         for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
@@ -166,7 +176,7 @@ void PerlCodeGen::writeExec()
         }
     }
     out << "  last if $cs == " << errorState() << ";\n  ++$p;\n }\n";
-    if (redFsm->anyEofActions()) {
+    if (redFsm->anyEofActions() && !noEnd) {
         out << " if ($p == $pe && defined($eof) && $p == $eof) {\n";
         for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
             if (st->eofAction) {
