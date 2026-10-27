@@ -60,7 +60,7 @@ printf 'position=3\n' > "$tmp/control.expected"
 diff -u "$tmp/control.expected" "$tmp/noend.perl"
 diff -u "$tmp/control.expected" "$tmp/control.perl"
 test "$(wc -l < "$tmp/table-ranges.perl")" -eq 16512
-for demo in product-code key-value streaming-greeting login-events sphinx-query; do
+for demo in product-code key-value streaming-greeting login-events sphinx-query sphinxql-select; do
     "$root/ragel/ragel" -L -Q -o "$tmp/$demo.pl" "$root/examples/perl/demos/$demo.rl"
     sed 's/[[:blank:]]*$//' "$tmp/$demo.pl" > "$tmp/$demo.normalized.pl"
     diff -u "$root/examples/perl/demos/$demo.pl" "$tmp/$demo.normalized.pl"

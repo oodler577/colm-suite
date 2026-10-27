@@ -12,13 +12,14 @@ use bytes;
     action phrase_char { $text .= chr(fc); }
     action finish_word { push @tokens, ['WORD', $field, $text]; $text = ''; }
     action finish_phrase { push @tokens, ['PHRASE', $field, $text]; $text = ''; }
+    action not_token { push @tokens, ['NOT', '', chr(fc)]; }
     action or_token { push @tokens, ['OR', '', '|']; }
 
     ident = (alpha | digit | '_')+;
     field = '@' @reset_field (ident $field_char) ' '+;
     word = (ident $word_char) %finish_word;
     phrase = '"' ((alpha | digit | '_' | ' ')+ $phrase_char) '"' %finish_phrase;
-    term = field? (word | phrase);
+    term = field? (('-' | '!') @not_token)? (word | phrase);
     main := ' '* term ((' '+ term) | (' '* '|' @or_token ' '* term))* ' '+;
 }%%
 %% write data;
@@ -26,6 +27,7 @@ use bytes;
 my @queries = @ARGV ? @ARGV : (
     '@title "state machine" perl | ruby',
     '@body perl search',
+    '@title patches @description scout -reproduction',
     'perl |',
 );
 for my $query (@queries) {

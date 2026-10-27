@@ -6,5 +6,10 @@ QUERY: @title "state machine" perl | ruby
 QUERY: @body perl search
   WORD field=body: perl
   WORD field=body: search
+QUERY: @title patches @description scout -reproduction
+  WORD field=title: patches
+  WORD field=description: scout
+  NOT: -
+  WORD field=description: reproduction
 QUERY: perl |
   INVALID (outside supported subset)
