@@ -19,7 +19,8 @@ The target supports `fhold`, `fexec`, `fbreak`, `fentry`, `fnext`, `fgoto`,
 `fcall`, and `fret` in non-EOF actions, including expression destinations.
 `write exec noend` is supported; the caller must arrange for execution to stop. For call/return, the host must declare
 `@stack` and `$top`; `write init` initializes `$top`. It rejects other control statements, EOF transitions,
-scanners, variable overrides, and non-default styles. Semantic conditions
+scanners, access/getkey/stack overrides, and non-default styles. Variable
+overrides for p, pe, eof, cs, and data support plain Perl host expressions. Semantic conditions
 with Perl expressions are supported; Ragel control statements inside a
 condition are rejected.
 EOF actions using `fc` or control statements are also rejected, as are

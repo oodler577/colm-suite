@@ -19,6 +19,7 @@ private:
     void action(RedAction *a);
     void condition(GenAction *a);
     void expression(GenInlineList *list);
+    std::string variable(GenInlineList *list, const char *fallback);
     int firstFinal();
     int errorState();
 };

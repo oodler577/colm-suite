@@ -22,8 +22,7 @@ void PerlCodeGen::finishRagelDef()
     redFsm->sortByStateId();
     analyzeMachine();
     if (hasLongestMatch) unsupported("scanner/longest match");
-    if (getKeyExpr || accessExpr || pExpr || peExpr || eofExpr || csExpr || dataExpr ||
-        prePushExpr || postPopExpr || topExpr || stackExpr || actExpr || tokstartExpr || tokendExpr) unsupported("variable or access overrides");
+    if (getKeyExpr || accessExpr || prePushExpr || postPopExpr || topExpr || stackExpr || actExpr || tokstartExpr || tokendExpr) unsupported("variable or access overrides");
     for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
         if (st->eofTrans) unsupported("EOF transitions");
         if (st->eofAction) {
@@ -65,8 +64,18 @@ void PerlCodeGen::writeData()
     out << "my $" << fsmName << "_error = " << errorState() << ";\n";
 }
 void PerlCodeGen::writeExports() { unsupported("write exports"); }
+std::string PerlCodeGen::variable(GenInlineList *list, const char *fallback)
+{
+    if (!list) return fallback;
+    std::string value;
+    for (GenInlineList::Iter i = *list; i.lte(); i++) {
+        if (i->type != GenInlineItem::Text) unsupported("Ragel expression in variable override");
+        value += i->data;
+    }
+    return value;
+}
 void PerlCodeGen::writeInit() {
-    if (!noCS) out << "$cs = " << redFsm->startState->id << ";\n";
+    if (!noCS) out << "" << variable(csExpr, "$cs") << " = " << redFsm->startState->id << ";\n";
     if (redFsm->anyActionCalls() || redFsm->anyActionRets()) out << "$top = 0;\n";
 }
 void PerlCodeGen::writeStart() { out << redFsm->startState->id; }
@@ -78,19 +87,19 @@ void PerlCodeGen::action(RedAction *a)
     for (GenActionTable::Iter item = a->key; item.lte(); item++) {
         for (GenInlineList::Iter i = *item->value->inlineList; i.lte(); i++) {
             if (i->type == GenInlineItem::Text) out << i->data;
-            else if (i->type == GenInlineItem::Char) out << "ord(substr($data, $p, 1))";
-            else if (i->type == GenInlineItem::PChar) out << "$p";
-            else if (i->type == GenInlineItem::Hold) out << "--$p;";
-            else if (i->type == GenInlineItem::Next) out << "$cs = " << i->targState->id << ";";
-            else if (i->type == GenInlineItem::Break) out << "++$p; goto RAGEL_PERL_OUT;";
-            else if (i->type == GenInlineItem::Goto) out << "$cs = " << i->targState->id << "; goto RAGEL_PERL_AGAIN;";
-            else if (i->type == GenInlineItem::Call) out << "$stack[$top++] = $cs; $cs = " << i->targState->id << "; goto RAGEL_PERL_AGAIN;";
-            else if (i->type == GenInlineItem::Ret) out << "$cs = $stack[--$top]; goto RAGEL_PERL_AGAIN;";
+            else if (i->type == GenInlineItem::Char) out << "ord(substr(" << variable(dataExpr, "$data") << ", " << variable(pExpr, "$p") << ", 1))";
+            else if (i->type == GenInlineItem::PChar) out << "" << variable(pExpr, "$p") << "";
+            else if (i->type == GenInlineItem::Hold) out << "--" << variable(pExpr, "$p") << ";";
+            else if (i->type == GenInlineItem::Next) out << "" << variable(csExpr, "$cs") << " = " << i->targState->id << ";";
+            else if (i->type == GenInlineItem::Break) out << "++" << variable(pExpr, "$p") << "; goto RAGEL_PERL_OUT;";
+            else if (i->type == GenInlineItem::Goto) out << "" << variable(csExpr, "$cs") << " = " << i->targState->id << "; goto RAGEL_PERL_AGAIN;";
+            else if (i->type == GenInlineItem::Call) out << "$stack[$top++] = " << variable(csExpr, "$cs") << "; " << variable(csExpr, "$cs") << " = " << i->targState->id << "; goto RAGEL_PERL_AGAIN;";
+            else if (i->type == GenInlineItem::Ret) out << "" << variable(csExpr, "$cs") << " = $stack[--$top]; goto RAGEL_PERL_AGAIN;";
             else if (i->type == GenInlineItem::Entry) out << i->targState->id;
-            else if (i->type == GenInlineItem::Exec) { out << "$p = ("; expression(i->children); out << ") - 1;"; }
-            else if (i->type == GenInlineItem::NextExpr) { out << "$cs = ("; expression(i->children); out << ");"; }
-            else if (i->type == GenInlineItem::GotoExpr) { out << "$cs = ("; expression(i->children); out << "); goto RAGEL_PERL_AGAIN;"; }
-            else if (i->type == GenInlineItem::CallExpr) { out << "$stack[$top++] = $cs; $cs = ("; expression(i->children); out << "); goto RAGEL_PERL_AGAIN;"; }
+            else if (i->type == GenInlineItem::Exec) { out << "" << variable(pExpr, "$p") << " = ("; expression(i->children); out << ") - 1;"; }
+            else if (i->type == GenInlineItem::NextExpr) { out << "" << variable(csExpr, "$cs") << " = ("; expression(i->children); out << ");"; }
+            else if (i->type == GenInlineItem::GotoExpr) { out << "" << variable(csExpr, "$cs") << " = ("; expression(i->children); out << "); goto RAGEL_PERL_AGAIN;"; }
+            else if (i->type == GenInlineItem::CallExpr) { out << "$stack[$top++] = " << variable(csExpr, "$cs") << "; " << variable(csExpr, "$cs") << " = ("; expression(i->children); out << "); goto RAGEL_PERL_AGAIN;"; }
             else unsupported("action item");
         }
         out << "\n";
@@ -100,8 +109,8 @@ void PerlCodeGen::expression(GenInlineList *list)
 {
     for (GenInlineList::Iter i = *list; i.lte(); i++) {
         if (i->type == GenInlineItem::Text) out << i->data;
-        else if (i->type == GenInlineItem::Char) out << "ord(substr($data, $p, 1))";
-        else if (i->type == GenInlineItem::PChar) out << "$p";
+        else if (i->type == GenInlineItem::Char) out << "ord(substr(" << variable(dataExpr, "$data") << ", " << variable(pExpr, "$p") << ", 1))";
+        else if (i->type == GenInlineItem::PChar) out << "" << variable(pExpr, "$p") << "";
         else if (i->type == GenInlineItem::Entry) out << i->targState->id;
         else unsupported("Ragel statement in expression");
     }
@@ -110,10 +119,10 @@ void PerlCodeGen::condition(GenAction *a) { expression(a->inlineList); }
 void PerlCodeGen::writeExec()
 {
     out << "{\n use bytes;\n while (";
-    if (!noEnd) out << "$p < $pe && ";
-    out << "$cs != " << errorState() << ") {\n";
+    if (!noEnd) out << "" << variable(pExpr, "$p") << " < " << variable(peExpr, "$pe") << " && ";
+    out << "" << variable(csExpr, "$cs") << " != " << errorState() << ") {\n";
     if (redFsm->anyFromStateActions()) {
-        out << "  my $_ragel_from = $cs;\n";
+        out << "  my $_ragel_from = " << variable(csExpr, "$cs") << ";\n";
         for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
             if (st->fromStateAction) {
                 out << "  if ($_ragel_from == " << st->id << ") {\n";
@@ -122,13 +131,13 @@ void PerlCodeGen::writeExec()
             }
         }
     }
-    out << "  my $_ragel_key = ord(substr($data, $p, 1));\n";
+    out << "  my $_ragel_key = ord(substr(" << variable(dataExpr, "$data") << ", " << variable(pExpr, "$p") << ", 1));\n";
     if (redFsm->anyConditions()) {
         out << "  my $_ragel_original = $_ragel_key;\n";
         for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
             for (GenStateCondList::Iter c = st->stateCondList; c.lte(); c++) {
                 GenCondSpace *space = c->condSpace;
-                out << "  if ($cs == " << st->id << " && $_ragel_original >= "
+                out << "  if (" << variable(csExpr, "$cs") << " == " << st->id << " && $_ragel_original >= "
                     << c->lowKey.getLongLong() << " && $_ragel_original <= "
                     << c->highKey.getLongLong() << ") {\n";
                 out << "   $_ragel_key = " << space->baseKey.getLongLong() << " + $_ragel_original - "
@@ -146,27 +155,27 @@ void PerlCodeGen::writeExec()
     bool firstState = true;
     for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
         if (st->id == errorState()) continue;
-        out << (firstState ? "  if" : "  elsif") << " ($cs == " << st->id << ") {\n";
+        out << (firstState ? "  if" : "  elsif") << " (" << variable(csExpr, "$cs") << " == " << st->id << ") {\n";
         firstState = false;
         bool firstTrans = true;
         for (RedTransList::Iter tr = st->outRange; tr.lte(); tr++) {
             out << (firstTrans ? "   if" : "   elsif") << " ($_ragel_key >= " << tr->lowKey.getLongLong()
                 << " && $_ragel_key <= " << tr->highKey.getLongLong() << ") {\n";
             firstTrans = false;
-            out << "    $cs = " << (tr->value->targ ? tr->value->targ->id : errorState()) << ";\n";
+            out << "    " << variable(csExpr, "$cs") << " = " << (tr->value->targ ? tr->value->targ->id : errorState()) << ";\n";
             action(tr->value->action);
             out << "   }\n";
         }
-        if (firstTrans) out << "   $cs = " << errorState() << ";\n";
-        else out << "   else { $cs = " << errorState() << "; }\n";
+        if (firstTrans) out << "   " << variable(csExpr, "$cs") << " = " << errorState() << ";\n";
+        else out << "   else { " << variable(csExpr, "$cs") << " = " << errorState() << "; }\n";
         out << "  }\n";
     }
-    if (firstState) out << "  $cs = " << errorState() << ";\n";
-    else out << "  else { $cs = " << errorState() << "; }\n";
+    if (firstState) out << "  " << variable(csExpr, "$cs") << " = " << errorState() << ";\n";
+    else out << "  else { " << variable(csExpr, "$cs") << " = " << errorState() << "; }\n";
     if (redFsm->anyActionGotos() || redFsm->anyActionCalls() || redFsm->anyActionRets())
         out << "  RAGEL_PERL_AGAIN: ;\n";
     if (redFsm->anyToStateActions()) {
-        out << "  my $_ragel_to = $cs;\n";
+        out << "  my $_ragel_to = " << variable(csExpr, "$cs") << ";\n";
         for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
             if (st->toStateAction) {
                 out << "  if ($_ragel_to == " << st->id << ") {\n";
@@ -175,12 +184,12 @@ void PerlCodeGen::writeExec()
             }
         }
     }
-    out << "  last if $cs == " << errorState() << ";\n  ++$p;\n }\n";
+    out << "  last if " << variable(csExpr, "$cs") << " == " << errorState() << ";\n  ++" << variable(pExpr, "$p") << ";\n }\n";
     if (redFsm->anyEofActions() && !noEnd) {
-        out << " if ($p == $pe && defined($eof) && $p == $eof) {\n";
+        out << " if (" << variable(pExpr, "$p") << " == " << variable(peExpr, "$pe") << " && defined(" << variable(eofExpr, "$eof") << ") && " << variable(pExpr, "$p") << " == " << variable(eofExpr, "$eof") << ") {\n";
         for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
             if (st->eofAction) {
-                out << "  if ($cs == " << st->id << ") {\n";
+                out << "  if (" << variable(csExpr, "$cs") << " == " << st->id << ") {\n";
                 action(st->eofAction);
                 out << "  }\n";
             }
