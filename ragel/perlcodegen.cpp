@@ -2,6 +2,8 @@
  * under the GNU General Public License, version 2 or (at your option) later. */
 #include <cstdlib>
 #include <iostream>
+#include <map>
+#include <vector>
 #include "perlcodegen.h"
 #include "ragel.h"
 
@@ -62,6 +64,36 @@ void PerlCodeGen::writeData()
     out << "my $" << fsmName << "_start = " << redFsm->startState->id << ";\n";
     out << "my $" << fsmName << "_first_final = " << firstFinal() << ";\n";
     out << "my $" << fsmName << "_error = " << errorState() << ";\n";
+    std::map<RedAction *, int> actionIds;
+    std::vector<long long> low, high;
+    std::vector<int> targets, actions, offsets;
+    for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
+        offsets.push_back((int)low.size());
+        for (RedTransList::Iter tr = st->outRange; tr.lte(); tr++) {
+            low.push_back(tr->lowKey.getLongLong());
+            high.push_back(tr->highKey.getLongLong());
+            targets.push_back(tr->value->targ ? tr->value->targ->id : errorState());
+            RedAction *a = tr->value->action;
+            if (a && actionIds.find(a) == actionIds.end()) {
+                const int id = (int)actionIds.size() + 1;
+                actionIds[a] = id;
+            }
+            actions.push_back(a ? actionIds[a] : 0);
+        }
+    }
+    offsets.push_back((int)low.size());
+    out << "my @_" << fsmName << "_offsets = (";
+    for (size_t i = 0; i < offsets.size(); i++) out << offsets[i] << ",";
+    out << ");\nmy @_" << fsmName << "_low = (";
+    for (size_t i = 0; i < low.size(); i++) out << low[i] << ",";
+    out << ");\nmy @_" << fsmName << "_high = (";
+    for (size_t i = 0; i < high.size(); i++) out << high[i] << ",";
+    out << ");\nmy @_" << fsmName << "_targets = (";
+    for (size_t i = 0; i < targets.size(); i++) out << targets[i] << ",";
+    out << ");\nmy @_" << fsmName << "_actions = (";
+    for (size_t i = 0; i < actions.size(); i++) out << actions[i] << ",";
+    out << ");\n";
+
 }
 void PerlCodeGen::writeExports() { unsupported("write exports"); }
 std::string PerlCodeGen::variable(GenInlineList *list, const char *fallback)
@@ -152,26 +184,41 @@ void PerlCodeGen::writeExec()
             }
         }
     }
-    bool firstState = true;
+    // The frontend supplies sorted, disjoint transition ranges. A binary
+    // search in each state's slice selects the target and action table.
+    const std::string cs = variable(csExpr, "$cs");
+    out << "  my $_ragel_trans = -1;\n";
+    out << "  if (" << cs << " >= 0 && " << cs << " < " << redFsm->nextStateId << ") {\n";
+    out << "   my $_ragel_lo = $_" << fsmName << "_offsets[" << cs << "];\n";
+    out << "   my $_ragel_hi = $_" << fsmName << "_offsets[" << cs << " + 1] - 1;\n";
+    out << "   while ($_ragel_lo <= $_ragel_hi) {\n";
+    out << "    my $_ragel_mid = int(($_ragel_lo + $_ragel_hi) / 2);\n";
+    out << "    if ($_ragel_key < $_" << fsmName << "_low[$_ragel_mid]) { $_ragel_hi = $_ragel_mid - 1; }\n";
+    out << "    elsif ($_ragel_key > $_" << fsmName << "_high[$_ragel_mid]) { $_ragel_lo = $_ragel_mid + 1; }\n";
+    out << "    else { $_ragel_trans = $_ragel_mid; last; }\n";
+    out << "   }\n  }\n";
+    out << "  my $_ragel_action = 0;\n";
+    out << "  if ($_ragel_trans >= 0) {\n";
+    out << "   " << cs << " = $_" << fsmName << "_targets[$_ragel_trans];\n";
+    out << "   $_ragel_action = $_" << fsmName << "_actions[$_ragel_trans];\n";
+    out << "  } else { " << cs << " = " << errorState() << "; }\n";
+    std::map<RedAction *, int> actionIds;
+    std::vector<RedAction *> orderedActions;
     for (RedStateList::Iter st = redFsm->stateList; st.lte(); st++) {
-        if (st->id == errorState()) continue;
-        out << (firstState ? "  if" : "  elsif") << " (" << variable(csExpr, "$cs") << " == " << st->id << ") {\n";
-        firstState = false;
-        bool firstTrans = true;
         for (RedTransList::Iter tr = st->outRange; tr.lte(); tr++) {
-            out << (firstTrans ? "   if" : "   elsif") << " ($_ragel_key >= " << tr->lowKey.getLongLong()
-                << " && $_ragel_key <= " << tr->highKey.getLongLong() << ") {\n";
-            firstTrans = false;
-            out << "    " << variable(csExpr, "$cs") << " = " << (tr->value->targ ? tr->value->targ->id : errorState()) << ";\n";
-            action(tr->value->action);
-            out << "   }\n";
+            RedAction *a = tr->value->action;
+            if (a && actionIds.find(a) == actionIds.end()) {
+                const int id = (int)actionIds.size() + 1;
+                actionIds[a] = id;
+                orderedActions.push_back(a);
+            }
         }
-        if (firstTrans) out << "   " << variable(csExpr, "$cs") << " = " << errorState() << ";\n";
-        else out << "   else { " << variable(csExpr, "$cs") << " = " << errorState() << "; }\n";
+    }
+    for (size_t i = 0; i < orderedActions.size(); i++) {
+        out << "  if ($_ragel_action == " << (i + 1) << ") {\n";
+        action(orderedActions[i]);
         out << "  }\n";
     }
-    if (firstState) out << "  " << variable(csExpr, "$cs") << " = " << errorState() << ";\n";
-    else out << "  else { " << variable(csExpr, "$cs") << " = " << errorState() << "; }\n";
     if (redFsm->anyActionGotos() || redFsm->anyActionCalls() || redFsm->anyActionRets())
         out << "  RAGEL_PERL_AGAIN: ;\n";
     if (redFsm->anyToStateActions()) {

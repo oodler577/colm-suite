@@ -1,8 +1,11 @@
 # Experimental Perl target
 
-The `-Q` target is an initial byte-oriented proof of concept. It emits Perl
-with explicit state and range checks, currently selected by `-T0` (the default).
-It is not yet Ragel's table-driven algorithm. Other output styles fail.
+The `-Q` target is an experimental byte-oriented implementation. The default
+`-T0` emits per-state offsets and sorted transition ranges, target and action
+tables, and a binary-search execution loop. This follows Ruby `-T0` in its
+table-driven approach but uses a different layout: Ruby separates single
+keys, ranges and default transitions and can use an indirection table.
+Other output styles fail.
 It is deliberately separate from the existing Ruby target, leaving room for
 additional Perl output strategies.
 

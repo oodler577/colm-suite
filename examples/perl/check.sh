@@ -9,6 +9,8 @@ sed 's/[[:blank:]]*$//' "$tmp/greeting.pl" > "$tmp/greeting-normalized.pl"
 sed 's/[[:blank:]]*$//' "$tmp/greeting.rb" > "$tmp/greeting-normalized.rb"
 diff -u "$root/examples/perl/greeting.pl" "$tmp/greeting-normalized.pl"
 diff -u "$root/examples/perl/greeting.rb" "$tmp/greeting-normalized.rb"
+grep -q 'my @_greeting_offsets =' "$tmp/greeting.pl"
+grep -q 'while ($_ragel_lo <= $_ragel_hi)' "$tmp/greeting.pl"
 perl -c "$tmp/greeting.pl"
 perl "$tmp/greeting.pl" > "$tmp/perl.out"
 ruby "$tmp/greeting.rb" > "$tmp/ruby.out"
@@ -30,7 +32,7 @@ if "$root/ragel/ragel" -Q -o "$tmp/unsupported.pl" "$root/examples/perl/unsuppor
     exit 1
 fi
 grep -q 'Perl backend: unsupported Ragel control statements' "$tmp/err"
-for pair in state-actions control next-hold call-ret goto conditions dynamic noend goto-dynamic call-ret-dynamic overrides; do
+for pair in state-actions control next-hold call-ret goto conditions dynamic noend goto-dynamic call-ret-dynamic overrides table-ranges; do
     "$root/ragel/ragel" -Q -o "$tmp/$pair.pl" "$root/examples/perl/$pair.rl"
     "$root/ragel/ragel" -R -o "$tmp/$pair.rb" "$root/examples/perl/$pair-ruby.rl"
     perl -c "$tmp/$pair.pl"
@@ -57,4 +59,5 @@ diff -u "$tmp/dynamic.expected" "$tmp/dynamic.perl"
 printf 'position=3\n' > "$tmp/control.expected"
 diff -u "$tmp/control.expected" "$tmp/noend.perl"
 diff -u "$tmp/control.expected" "$tmp/control.perl"
-printf 'Ruby comparison, streaming, actions, and unsupported-feature checks passed.\n'
+test "$(wc -l < "$tmp/table-ranges.perl")" -eq 16512
+printf 'Ruby comparison, streaming, actions, table ranges, and unsupported-feature checks passed.\n'
