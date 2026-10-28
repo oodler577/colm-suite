@@ -120,7 +120,8 @@ void InputData::makeOutputStream()
 				goDefaultFileName( inputFileName );
 				break;
 			case HostLang::Perl:
-				if ( outputFileName == 0 ) outputFileName = fileNameFromStem( inputFileName, ".pl" );
+				if ( outputFileName == 0 )
+					outputFileName = fileNameFromStem( inputFileName, ".pl" );
 				break;
 			case HostLang::Ruby:
 				rubyDefaultFileName( inputFileName );

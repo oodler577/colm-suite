@@ -378,7 +378,7 @@ CodeGenData *makeCodeGen( const char *sourceFileName, const char *fsmName, ostre
 	else if ( hostLang == &hostLangJava )
 		cgd = javaMakeCodeGen( sourceFileName, fsmName, out );
 	else if ( hostLang == &hostLangPerl ) {
-		cgd = new PerlCodeGen(out);
+		cgd = new PerlCodeGen( out );
 		cgd->sourceFileName = sourceFileName;
 		cgd->fsmName = fsmName;
 	}
